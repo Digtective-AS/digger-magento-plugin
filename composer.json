@@ -1,0 +1,19 @@
+{
+  "name": "digtective/digger",
+  "type": "magento2-module",
+  "version": "1.0.0",
+  "require": {
+    "php": "~7.4.0",
+    "magento/framework": "~100.0.4"
+  },
+  "license": [
+    "MIT"
+  ],
+  "autoload": {
+    "files": ["registration.php"],
+    "psr-4": {
+      "Digtective\\Digger\\": ""
+    }
+  }
+
+}

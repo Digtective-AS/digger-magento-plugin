@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xs">
+    <system>
+        <tab id="digger_integration_config" translate="label" sortOrder="100">
+            <label>Digtective</label>
+        </tab>
+        <section id="digger_integration" translate="label" sortOrder="100" showInDefault="1" showInWebsite="1"
+                 showInStore="1">
+            <class>separator-top</class>
+            <label>Digger Integration</label>
+            <tab>digger_integration_config</tab>
+            <resource>Digtective_Digger::config</resource>
+            <group id="general" translate="label" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Integration</label>
+                <comment>The main integration fields for digger to work</comment>
+                <field id="digger_api_url" translate="label" sortOrder="1" showInDefault="1" showInWebsite="1"
+                       showInStore="1">
+                    <label>Digger Url</label>
+                    <comment>Place one of the provided URL's from digger</comment>
+                </field>
+                <field id="digger_api_token" translate="label" sortOrder="2" showInDefault="1" showInWebsite="1"
+                       showInStore="1">
+                    <label>API Token</label>
+                    <comment>Place your api token here</comment>
+                </field>
+                <field id="digger_tracking_code_identifier" translate="label" sortOrder="3" showInDefault="1" showInWebsite="1"
+                       showInStore="1">
+                    <label>Tracking code identifier</label>
+                    <comment>Place your tracking code identifier here</comment>
+                </field>
+
+            </group>
+        </section>
+    </system>
+</config>
