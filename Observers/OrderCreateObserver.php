@@ -7,7 +7,6 @@ namespace Digtective\Digger\Observers;
 use Digtective\Digger\Api\Data\DiggerConsumerRequestInterface;
 use Digtective\Digger\Api\Data\DiggerConsumerRequestInterfaceFactory;
 use Digtective\Digger\Consumer\DiggerConsumer;
-use InvalidArgumentException;
 use Magento\Catalog\Model\Session;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -43,7 +42,11 @@ class OrderCreateObserver implements ObserverInterface
     private $logger;
 
     /**
+     * @param Magento\Framework\MessageQueue\PublisherInterface                $publisher
      * @param Digtective\Digger\Api\Data\DiggerConsumerRequestInterfaceFactory $diggerConsumerRequestFactory
+     * @param Magento\Framework\UrlInterface                                   $urlInterface
+     * @param Magento\Catalog\Model\Session                                    $session
+     * @param Psr\Log\LoggerInterface                                          $logger
      */
     public function __construct(
         PublisherInterface $publisher,
@@ -62,7 +65,7 @@ class OrderCreateObserver implements ObserverInterface
     /**
      * Execute is triggered on the create order event.
      *
-     * @throws InvalidArgumentException
+     * @param Magento\Framework\Event\Observer $observer
      */
     public function execute(Observer $observer)
     {
