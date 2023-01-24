@@ -1,10 +1,10 @@
 {
   "name": "digtective/magento-digger-connector",
   "type": "magento2-module",
-  "version": "1.0.0",
+  "version": "1.1.5",
   "require": {
-    "php": "~7.4.0",
-    "magento/framework": "~100.0.4"
+    "magento/framework": "103.0.*",
+    "php": "~7.4.0||~8.1.0"
   },
   "license": [
     "MIT"
@@ -15,5 +15,4 @@
       "Digtective\\Digger\\": ""
     }
   }
-
 }
