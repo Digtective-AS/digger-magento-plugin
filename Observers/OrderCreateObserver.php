@@ -1,69 +1,103 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Digtective\Digger\Observers;
 
-use Digtective\Digger\Connectors\DiggerConnector;
+use Digtective\Digger\Api\Data\DiggerConsumerRequestInterface;
+use Digtective\Digger\Api\Data\DiggerConsumerRequestInterfaceFactory;
+use Digtective\Digger\Consumer\DiggerConsumer;
+use InvalidArgumentException;
 use Magento\Catalog\Model\Session;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\UrlInterface;
+use Psr\Log\LoggerInterface;
 
 class OrderCreateObserver implements ObserverInterface
 {
-    private $urlInterface;
-    private $session;
-    private $diggerConnector;
+    /**
+     * @var PublisherInterface
+     */
+    private $publisher;
 
+    /**
+     * @var Digtective\Digger\Api\Data\DiggerConsumerRequestInterfaceFactory
+     */
+    private $diggerConsumerRequestFactory;
+
+    /**
+     * @var UrlInterface
+     */
+    private $urlInterface;
+
+    /**
+     * @var Session
+     */
+    private $session;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @param Digtective\Digger\Api\Data\DiggerConsumerRequestInterfaceFactory $diggerConsumerRequestFactory
+     */
     public function __construct(
+        PublisherInterface $publisher,
+        DiggerConsumerRequestInterfaceFactory $diggerConsumerRequestFactory,
         UrlInterface $urlInterface,
         Session $session,
-        DiggerConnector $diggerConnector,
+        LoggerInterface $logger
     ) {
+        $this->publisher = $publisher;
+        $this->diggerConsumerRequestFactory = $diggerConsumerRequestFactory;
         $this->urlInterface = $urlInterface;
         $this->session = $session;
-        $this->diggerConnector = $diggerConnector;
+        $this->logger = $logger;
     }
 
+    /**
+     * Execute is triggered on the create order event.
+     *
+     * @throws InvalidArgumentException
+     */
     public function execute(Observer $observer)
     {
-        $order = $observer->getEvent()->getOrder();
-        $diggerId = $order->getData('digger_id');
+        try {
+            $order = $observer->getEvent()->getOrder();
+            $diggerId = $order->getData('digger_id');
 
-        if ($diggerId) {
-            $this->updateFormSubmission($order);
-        } else {
-            $this->createFormSubmission($order);
+            $sessionId = $this->session->getDiggerSessionId();
+            $currentPath = $this->urlInterface->getCurrentUrl();
+            $trackingCode = $this->session->getTrackingCode() ?? '';
+            $referrer = $this->session->getReferer() ?? '';
+            $userAgent = $this->session->getUserAgent() ?? '';
+
+            /** @var \Digtective\Digger\Api\Data\DiggerConsumerRequestInterface $requestConsumer */
+            $requestConsumer = $this->diggerConsumerRequestFactory->create();
+
+            $requestConsumer->setRequestType(
+                $diggerId ?
+                DiggerConsumerRequestInterface::REQUEST_TYPE_MODIFY_ORDER
+                :
+                DiggerConsumerRequestInterface::REQUEST_TYPE_CREATE_ORDER
+            );
+
+            $requestConsumer->setDiggerId($diggerId);
+            $requestConsumer->setOrderEntityId($order->getId());
+            $requestConsumer->setDiggerSessionId($sessionId);
+            $requestConsumer->setTrackingCode($trackingCode);
+            $requestConsumer->setReferer($referrer);
+            $requestConsumer->setCurrentUrl($currentPath);
+            $requestConsumer->setUserAgent($userAgent);
+            $requestConsumer->setOrderStatus($order->getStatus());
+            $requestConsumer->setGrandTotal($order->getGrandTotal());
+            $this->publisher->publish(DiggerConsumer::DIGGER_REQUEST_TOPIC, $requestConsumer);
+        } catch (\Throwable $t) {
+            $this->logger->critical($t);
         }
-    }
-
-    private function createFormSubmission($order)
-    {
-        $sessionId = $this->session->getDiggerSessionId();
-        $currentPath = $this->urlInterface->getCurrentUrl();
-        $trackingCode = $this->session->getTrackingCode();
-        $referrer = $this->session->getReferer();
-        $userAgent = $this->session->getUserAgent();
-
-        $result = $this->diggerConnector->createFormSubmission(
-            $sessionId,
-            $trackingCode,
-            $referrer,
-            $currentPath,
-            $userAgent,
-            $order->getStatus(),
-            $order->getGrandTotal()
-        );
-
-        $order->setData('digger_id', $result->id);
-        $order->save();
-    }
-
-    private function updateFormSubmission($order)
-    {
-        $this->diggerConnector->updateFormSubmission(
-            $order->getData('digger_id'),
-            $order->getStatus(),
-            $order->getGrandTotal()
-        );
     }
 }

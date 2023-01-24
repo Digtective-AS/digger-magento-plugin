@@ -1,0 +1,15 @@
+<script>
+    require(['jquery'], function($) {
+
+        var myJSObject = {
+            "currentPath": window.location.href,
+            "referer": document.referrer
+        };
+
+        $.ajax("<?= $escaper->escapeUrl($block->getRegisterPageViewUrl()) ?>", {
+            data : JSON.stringify(myJSObject),
+            contentType : 'application/json',
+            type : 'POST'
+        });
+    });
+</script>

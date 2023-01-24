@@ -1,37 +1,71 @@
 <?php
 
+declare(strict_types = 1);
+
 namespace Digtective\Digger\Connectors;
 
 use Digtective\Digger\Helpers\DiggerConfig;
-use Magento\Framework\HTTP\ZendClient;
+use Laminas\Http\Client;
+use Laminas\Http\Header\Exception\InvalidArgumentException;
+use Laminas\Http\Header\Exception\RuntimeException;
+use Laminas\Http\Request;
+use Psr\Log\LoggerInterface;
 
 class DiggerConnector
 {
+    /**
+     * @var mixed
+     */
+
     private $apiUrl;
+
+    /**
+     * @var DiggerConfig
+     */
     private $configData;
+
+    /**
+     * @var Client
+     */
+
     private $httpClient;
 
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     *
+     * @param DiggerConfig $configData
+     * @param Client $httpClient
+     * @param LoggerInterface $logger
+     * @return void
+     * @throws Zend_Http_Client_Exception
+     */
     public function __construct(
         DiggerConfig $configData,
-        ZendClient $curl
+        Client $httpClient,
+        LoggerInterface $logger
     ) {
         $this->configData = $configData;
-        $this->httpClient = $curl;
+        $this->httpClient = $httpClient;
+        $this->logger = $logger;
         $this->apiUrl = $this->configData->getGeneralConfig("digger_api_url");
-        $this->setupHttpClient();
     }
 
-    private function setupHttpClient()
-    {
-        $apiToken = $this->configData->getGeneralConfig("digger_api_token");
-
-        $this->httpClient->setHeaders([
-            "Contet-Type: application/json",
-            "Accept: application/json",
-            "Authorization: Bearer $apiToken"
-        ]);
-    }
-
+    /**
+     * Send CreateFormSubmission to backend server
+     *
+     * @param mixed $sessionId
+     * @param mixed $trackingCode
+     * @param mixed $referer
+     * @param mixed $path
+     * @param mixed $userAgent
+     * @param mixed $orderStatus
+     * @param mixed $orderPrice
+     * @return mixed
+     */
     public function createFormSubmission(
         $sessionId,
         $trackingCode,
@@ -41,40 +75,58 @@ class DiggerConnector
         $orderStatus,
         $orderPrice
     ) {
-        $this->httpClient->setUri("$this->apiUrl/api/form-submission");
-        $this->httpClient->setMethod(\Zend_Http_Client::POST);
-        $this->setRequestData([
-            'session_id' => $sessionId,
-            'tracking_code' => $trackingCode,
-            'referer' => $referer,
-            'path' => $path,
-            'user_agent' => $userAgent,
-            'form' => [
-                'order_status' => $orderStatus,
-                'order_amount' => $orderPrice,
+        return $this->sendData(
+            "$this->apiUrl/api/form-submission",
+            \Laminas\Http\Request::METHOD_POST,
+            [
+                'session_id' => $sessionId,
+                'tracking_code' => $trackingCode,
+                'referer' => $referer,
+                'path' => $path,
+                'user_agent' => $userAgent,
+                'form' => [
+                    'order_status' => $orderStatus,
+                    'order_amount' => $orderPrice,
+                ]
             ]
-        ]);
-
-        return \Safe\json_decode($this->httpClient->request()->getBody());
+        );
     }
 
+    /**
+     * Send UpdateFormSubmission to backend server
+     *
+     * @param mixed $diggerId
+     * @param mixed $orderStatus
+     * @param mixed $orderPrice
+     * @return void
+     */
     public function updateFormSubmission(
         $diggerId,
         $orderStatus,
         $orderPrice
     ) {
-        $this->httpClient->setUri("$this->apiUrl/api/form-submission/$diggerId");
-        $this->httpClient->setMethod(\Zend_Http_Client::PUT);
-        $this->setRequestData([
-            'form' => [
-                'order_status' => $orderStatus,
-                'order_amount' => $orderPrice,
+        $this->sendData(
+            "$this->apiUrl/api/form-submission/$diggerId",
+            \Laminas\Http\Request::METHOD_PUT,
+            [
+                'form' => [
+                    'order_status' => $orderStatus,
+                    'order_amount' => $orderPrice,
+                ]
             ]
-        ]);
-
-        $this->httpClient->request();
+        );
     }
 
+    /**
+     * Send CreatePageView to backend server
+     *
+     * @param mixed $sessionId
+     * @param mixed $trackingCode
+     * @param mixed $referer
+     * @param mixed $path
+     * @param mixed $userAgent
+     * @return void
+     */
     public function createPageView(
         $sessionId,
         $trackingCode,
@@ -82,20 +134,74 @@ class DiggerConnector
         $path,
         $userAgent
     ) {
-        $this->httpClient->setUri("$this->apiUrl/api/page-view");
-        $this->httpClient->setMethod(\Zend_Http_Client::POST);
-        $this->setRequestData([
-            'session_id' => $sessionId,
-            'tracking_code' => $trackingCode,
-            'referer' => $referer,
-            'path' => $path,
-            'user_agent' => $userAgent
-        ]);
-        $this->httpClient->request();
+        $this->sendData(
+            "$this->apiUrl/api/page-view",
+            \Laminas\Http\Request::METHOD_POST,
+            [
+                'session_id' => $sessionId,
+                'tracking_code' => $trackingCode,
+                'referer' => $referer,
+                'path' => $path,
+                'user_agent' => $userAgent
+            ]
+        );
     }
 
-    private function setRequestData($requestData)
+    /**
+     * Post data to server
+     *
+     * @param string $endpoint
+     * @param string $method
+     * @param array $payload
+     * @return void
+     */
+    private function sendData(string $endpoint, string $method, array $payload) : object
     {
-        $this->httpClient->setRawData(\Safe\json_encode($requestData), 'application/json');
+        $rc = '{}';
+        try {
+            $this->httpClient->reset();
+            $this->httpClient->setOptions(['timeout' => 60]);
+            $request = new Request();
+            $request->setUri($endpoint);
+            $request->setMethod($method);
+            $encodedPayload = \Safe\json_encode($payload);
+            $this->setHeaders($request, $encodedPayload);
+            $request->setContent($encodedPayload);
+
+            $this->httpClient->send($request);
+            $response = $this->httpClient->getResponse();
+            if ($response->getStatusCode() !== 200) {
+                $this->logger->critical("Digtective : {$response->getReasonPhrase()}");
+                $this->logger->critical("Digtective : {$response->getBody()}");
+            } else {
+                $rc = $response->getBody();
+            }
+        } catch (\Throwable $t) {
+            $this->logger->critical($t);
+        }
+        return  \Safe\json_decode($rc);
+    }
+
+    /**
+     * Add common headers to HTTP request
+     *
+     * @param Request $request
+     * @param string $payload
+     * @return void
+     * @throws RuntimeException
+     * @throws InvalidArgumentException
+     */
+    private function setHeaders(Request $request, string $payload): void
+    {
+        $apiToken = $this->configData->getGeneralConfig("digger_api_token");
+        $request->getHeaders()->addHeaders([
+            'User-Agent' => 'Magento',
+            'Cache-Control' => 'no-cache',
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+            'Content-Length' => strlen($payload),
+            'Authorization' => ('Bearer ' . $apiToken),
+            'Accept-Encoding' => 'gzip,deflate'
+        ]);
     }
 }
