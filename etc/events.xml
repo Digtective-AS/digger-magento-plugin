@@ -1,0 +1,9 @@
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="controller_action_predispatch">
+        <observer name="page_observer" instance="Digtective\Digger\Observers\PageObserver" shared="false" />
+    </event>
+    <event name="sales_order_save_after">
+        <observer name="order_create_observer" instance="Digtective\Digger\Observers\OrderCreateObserver" shared="false" />
+    </event>
+</config>
