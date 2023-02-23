@@ -51,9 +51,10 @@ class DiggerConsumer
      * Process queue
      *
      * @param DiggerConsumerRequestInterface $diggerConsumerRequest
+     * @return void
      * @throws LocalizedException
      */
-    public function process(DiggerConsumerRequestInterface $diggerConsumerRequest)
+    public function process(DiggerConsumerRequestInterface $diggerConsumerRequest) : void
     {
         switch ($diggerConsumerRequest->getRequestType()) {
             case DiggerConsumerRequestInterface::REQUEST_TYPE_CREATE_ORDER:
