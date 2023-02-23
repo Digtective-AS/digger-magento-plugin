@@ -73,7 +73,7 @@ class OrderCreateObserver implements ObserverInterface
             $order = $observer->getEvent()->getOrder();
             $diggerId = $order->getData('digger_id');
 
-            $sessionId = $this->session->getDiggerSessionId();
+            $sessionId = $this->session->getDiggerSessionId() ?? $this->generateUuid();
             $currentPath = $this->urlInterface->getCurrentUrl();
             $trackingCode = $this->session->getTrackingCode() ?? '';
             $referrer = $this->session->getReferer() ?? '';
@@ -102,5 +102,25 @@ class OrderCreateObserver implements ObserverInterface
         } catch (\Throwable $t) {
             $this->logger->critical($t);
         }
+    }
+
+    /**
+     * Generate a GUID.
+     *
+     * @return string
+     */
+    private function generateUuid()
+    {
+        return sprintf(
+            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0x0FFF) | 0x4000,
+            random_int(0, 0x3FFF) | 0x8000,
+            random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF)
+        );
     }
 }
