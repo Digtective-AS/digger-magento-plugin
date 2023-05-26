@@ -4,6 +4,7 @@
 
      <consumer name="digger.request.consumer"
               queue="digger.request"
+              connection="db"
               maxMessages="5000"
               consumerInstance="Magento\Framework\MessageQueue\Consumer"
               handler="Digtective\Digger\Consumer\DiggerConsumer::process"/>
